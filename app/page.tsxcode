@@ -1,0 +1,63 @@
+import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Brain,
+  Building2,
+  CheckCircle,
+  ClipboardList,
+  Cpu,
+  GraduationCap,
+  HardHat,
+  LayoutDashboard,
+  Settings,
+  Wrench,
+} from "lucide-react";
+
+const modules = [
+  {
+    title: "Gestão de Obras",
+    description:
+      "Controle físico-financeiro, medições, documentos, fotos e evolução da obra.",
+    icon: HardHat,
+  },
+  {
+    title: "FACILMART",
+    description:
+      "Gestão empresarial para controle financeiro, ativos e operações.",
+    icon: Building2,
+  },
+  {
+    title: "IA Corporativa",
+    description:
+      "Agentes inteligentes para documentos, diagnósticos e produtividade.",
+    icon: Brain,
+  },
+  {
+    title: "Cursos EAD",
+    description:
+      "Treinamentos técnicos e corporativos em trilhas estruturadas.",
+    icon: GraduationCap,
+  },
+  {
+    title: "Ferramentas de Engenharia",
+    description:
+      "Checklists, cálculos, templates e modelos técnicos.",
+    icon: Wrench,
+  },
+  {
+    title: "Automação via n8n",
+    description:
+      "Integrações, alertas, aprovações e fluxos automatizados.",
+    icon: Settings,
+  },
+  {
+    title: "Dashboards Executivos",
+    description:
+      "Indicadores, BI e visão gerencial em tempo real.",
+    icon: LayoutDashboard,
+  },
+];
+
+const companies = [
+}

@@ -1,0 +1,383 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserStatus { PENDING APPROVED REJECTED SUSPENDED INACTIVE }
+enum ModuleStatus { ACTIVE INACTIVE DEVELOPMENT LOCKED }
+enum AccessLevel { NONE READ CREATE UPDATE DELETE APPROVE MANAGE FULL }
+enum AuditAction { CREATE READ UPDATE DELETE LOGIN LOGOUT APPROVE REJECT SUSPEND RESTORE EXPORT IMPORT UPLOAD DOWNLOAD AI_ANALYSIS SYSTEM }
+enum ApprovalStatus { PENDING APPROVED REJECTED CANCELLED }
+enum DocumentStatus { PENDING ANALYZED APPROVED REJECTED ARCHIVED }
+enum AiAgentStatus { ACTIVE INACTIVE DEVELOPMENT }
+
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  phone String?
+  passwordHash String
+  status UserStatus @default(PENDING)
+  avatarUrl String?
+  mustChangePass Boolean @default(false)
+  approvedAt DateTime?
+  approvedById String?
+  rejectedAt DateTime?
+  rejectedById String?
+  suspendedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  approvedBy User? @relation("UserApprovedBy", fields: [approvedById], references: [id])
+  approvedUsers User[] @relation("UserApprovedBy")
+  rejectedBy User? @relation("UserRejectedBy", fields: [rejectedById], references: [id])
+  rejectedUsers User[] @relation("UserRejectedBy")
+  roles UserRole[]
+  moduleAccess UserModuleAccess[]
+  organizations OrganizationUser[]
+  approvalRequests ApprovalRequest[] @relation("ApprovalRequestedUser")
+  approvedRequests ApprovalRequest[] @relation("ApprovalAdminUser")
+  auditLogs AuditLog[] @relation("AuditUser")
+  loginLogs LoginLog[]
+  documents Document[]
+  aiLogs AiLog[]
+  worksCreated Work[] @relation("WorkCreatedBy")
+  assetsCreated FacilmartAsset[] @relation("AssetCreatedBy")
+  coursesCreated TrainingCourse[] @relation("CourseCreatedBy")
+  @@index([status])
+  @@index([email])
+}
+
+model Role {
+  id String @id @default(cuid())
+  name String @unique
+  description String?
+  isSystem Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  description String?
+  moduleKey String?
+  action String
+  resource String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  roles RolePermission[]
+}
+
+model UserRole {
+  id String @id @default(cuid())
+  userId String
+  roleId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@unique([userId, roleId])
+}
+
+model RolePermission {
+  id String @id @default(cuid())
+  roleId String
+  permissionId String
+  createdAt DateTime @default(now())
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@unique([roleId, permissionId])
+}
+
+model Module {
+  id String @id @default(cuid())
+  key String @unique
+  name String
+  description String?
+  status ModuleStatus @default(DEVELOPMENT)
+  icon String?
+  route String?
+  order Int @default(0)
+  isCore Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  access UserModuleAccess[]
+}
+
+model UserModuleAccess {
+  id String @id @default(cuid())
+  userId String
+  moduleId String
+  accessLevel AccessLevel @default(READ)
+  canCreate Boolean @default(false)
+  canRead Boolean @default(true)
+  canUpdate Boolean @default(false)
+  canDelete Boolean @default(false)
+  canApprove Boolean @default(false)
+  canManage Boolean @default(false)
+  scopeType String?
+  scopeId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  @@unique([userId, moduleId, scopeType, scopeId])
+  @@index([userId])
+  @@index([moduleId])
+}
+
+model Organization {
+  id String @id @default(cuid())
+  name String
+  tradeName String?
+  document String?
+  type String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users OrganizationUser[]
+  works Work[]
+  assets FacilmartAsset[]
+  courses TrainingCourse[]
+}
+
+model OrganizationUser {
+  id String @id @default(cuid())
+  organizationId String
+  userId String
+  title String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, userId])
+}
+
+model ApprovalRequest {
+  id String @id @default(cuid())
+  requestedUserId String
+  adminUserId String?
+  status ApprovalStatus @default(PENDING)
+  requestedModule String?
+  justification String?
+  adminNote String?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  requestedUser User @relation("ApprovalRequestedUser", fields: [requestedUserId], references: [id], onDelete: Cascade)
+  adminUser User? @relation("ApprovalAdminUser", fields: [adminUserId], references: [id])
+  @@index([status])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  userId String?
+  action AuditAction
+  moduleKey String?
+  resource String?
+  resourceId String?
+  description String?
+  ipAddress String?
+  userAgent String?
+  oldValue Json?
+  newValue Json?
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User? @relation("AuditUser", fields: [userId], references: [id])
+  @@index([userId])
+  @@index([moduleKey])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+model LoginLog {
+  id String @id @default(cuid())
+  userId String?
+  email String?
+  success Boolean
+  ipAddress String?
+  userAgent String?
+  reason String?
+  createdAt DateTime @default(now())
+  user User? @relation(fields: [userId], references: [id])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id String @id @default(cuid())
+  key String @unique
+  value Json
+  description String?
+  isPublic Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Document {
+  id String @id @default(cuid())
+  title String
+  originalName String?
+  fileName String?
+  filePath String?
+  fileType String?
+  mimeType String?
+  sizeBytes Int?
+  status DocumentStatus @default(PENDING)
+  moduleKey String?
+  resource String?
+  resourceId String?
+  uploadedById String?
+  organizationId String?
+  aiSummary String?
+  aiExtractedData Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  uploadedBy User? @relation(fields: [uploadedById], references: [id])
+  aiLogs AiLog[]
+  @@index([moduleKey])
+  @@index([resource])
+  @@index([resourceId])
+}
+
+model AiAgent {
+  id String @id @default(cuid())
+  key String @unique
+  name String
+  description String?
+  moduleKey String?
+  basePrompt String?
+  status AiAgentStatus @default(DEVELOPMENT)
+  modelName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  logs AiLog[]
+}
+
+model AiLog {
+  id String @id @default(cuid())
+  userId String?
+  agentId String?
+  documentId String?
+  moduleKey String?
+  action String
+  prompt String?
+  response String?
+  tokensInput Int?
+  tokensOutput Int?
+  costEstimate Float?
+  status String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User? @relation(fields: [userId], references: [id])
+  agent AiAgent? @relation(fields: [agentId], references: [id])
+  document Document? @relation(fields: [documentId], references: [id])
+  @@index([moduleKey])
+  @@index([createdAt])
+}
+
+model Work {
+  id String @id @default(cuid())
+  organizationId String?
+  name String
+  code String?
+  description String?
+  location String?
+  status String @default("PLANEJAMENTO")
+  budgetPlanned Float?
+  budgetRealized Float?
+  startDate DateTime?
+  endDate DateTime?
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  createdBy User? @relation("WorkCreatedBy", fields: [createdById], references: [id])
+  stages WorkStage[]
+  @@index([status])
+}
+
+model WorkStage {
+  id String @id @default(cuid())
+  workId String
+  code String?
+  name String
+  description String?
+  plannedCost Float?
+  actualCost Float?
+  plannedPct Float?
+  actualPct Float?
+  order Int @default(0)
+  status String @default("PENDENTE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  @@index([workId])
+}
+
+model FacilmartAsset {
+  id String @id @default(cuid())
+  organizationId String?
+  tag String @unique
+  name String
+  category String?
+  type String?
+  brand String?
+  model String?
+  serialNumber String?
+  purchaseDate DateTime?
+  purchaseValue Float?
+  supplier String?
+  invoiceNumber String?
+  warrantyStart DateTime?
+  warrantyEnd DateTime?
+  location String?
+  status String @default("OPERANDO")
+  notes String?
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  createdBy User? @relation("AssetCreatedBy", fields: [createdById], references: [id])
+  occurrences FacilmartAssetOccurrence[]
+  @@index([tag])
+  @@index([status])
+}
+
+model FacilmartAssetOccurrence {
+  id String @id @default(cuid())
+  assetId String
+  title String
+  description String?
+  priority String @default("MEDIA")
+  status String @default("ABERTA")
+  occurredAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  asset FacilmartAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  @@index([assetId])
+  @@index([status])
+}
+
+model TrainingCourse {
+  id String @id @default(cuid())
+  organizationId String?
+  title String
+  description String?
+  category String?
+  workloadHours Int?
+  status String @default("RASCUNHO")
+  certificateEnabled Boolean @default(false)
+  minimumScore Float?
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  createdBy User? @relation("CourseCreatedBy", fields: [createdById], references: [id])
+}
